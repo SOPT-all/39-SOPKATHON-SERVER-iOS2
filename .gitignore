@@ -40,9 +40,12 @@ bin/
 
 ### infra
 .terraform/
+**/.terraform/*
 *.tfstate
 *.tfstate.*
 *.tfvars
+*.tfplan
+crash.log
 
 ### security
 .env
