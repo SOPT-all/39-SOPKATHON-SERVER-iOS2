@@ -13,3 +13,7 @@ output "ecr_repository_url" {
 output "s3_bucket_name" {
   value = aws_s3_bucket.files.id
 }
+
+output "github_actions_user_name" {
+  value = aws_iam_user.github_actions.name
+}
