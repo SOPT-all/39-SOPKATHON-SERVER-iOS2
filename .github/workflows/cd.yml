@@ -1,0 +1,137 @@
+name: CD
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+jobs:
+  prepare-deployment:
+    name: Prepare deployment
+    if: >-
+      github.event.pull_request.merged == true &&
+      github.event.pull_request.head.ref == 'develop' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      contains(github.event.pull_request.labels.*.name, 'release')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
+      ECR_REPOSITORY_URL: ${{ vars.ECR_REPOSITORY_URL }}
+      EC2_INSTANCE_ID: ${{ vars.EC2_INSTANCE_ID }}
+      IMAGE_TAG: ${{ github.sha }}
+
+    steps:
+      - name: Check out merged code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Validate deployment configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          : "${AWS_REGION:?Missing Actions variable: AWS_REGION}"
+          : "${AWS_ACCOUNT_ID:?Missing Actions variable: AWS_ACCOUNT_ID}"
+          : "${ECR_REPOSITORY_URL:?Missing Actions variable: ECR_REPOSITORY_URL}"
+          : "${EC2_INSTANCE_ID:?Missing Actions variable: EC2_INSTANCE_ID}"
+
+          checked_out_sha="$(git rev-parse HEAD)"
+          if [[ "${checked_out_sha}" != "${IMAGE_TAG}" ]]; then
+            echo "Checked out SHA does not match the merged commit SHA."
+            exit 1
+          fi
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+          allowed-account-ids: ${{ env.AWS_ACCOUNT_ID }}
+
+      - name: Verify AWS identity
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          aws sts get-caller-identity \
+            --query '{Account: Account, Arn: Arn, UserId: UserId}'
+
+      - name: Check whether image already exists
+        id: ecr-image
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          repository_name="${ECR_REPOSITORY_URL##*/}"
+
+          set +e
+          describe_result="$(
+            aws ecr describe-images \
+              --repository-name "${repository_name}" \
+              --image-ids "imageTag=${IMAGE_TAG}" \
+              2>&1
+          )"
+          describe_status=$?
+          set -e
+
+          if [[ ${describe_status} -eq 0 ]]; then
+            image_exists="true"
+          elif [[ "${describe_result}" == *"ImageNotFoundException"* ]]; then
+            image_exists="false"
+          else
+            echo "Failed to check the image in ECR."
+            echo "${describe_result}"
+            exit "${describe_status}"
+          fi
+
+          echo "exists=${image_exists}" >> "${GITHUB_OUTPUT}"
+
+      - name: Log in to Amazon ECR
+        if: steps.ecr-image.outputs.exists != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          registry="${ECR_REPOSITORY_URL%%/*}"
+          aws ecr get-login-password --region "${AWS_REGION}" \
+            | docker login --username AWS --password-stdin "${registry}"
+
+      - name: Prepare image metadata
+        shell: bash
+        env:
+          IMAGE_EXISTS: ${{ steps.ecr-image.outputs.exists }}
+        run: |
+          set -euo pipefail
+
+          image_uri="${ECR_REPOSITORY_URL}:${IMAGE_TAG}"
+
+          {
+            echo "### CD preparation completed"
+            echo ""
+            echo "- Commit: \`${IMAGE_TAG}\`"
+            echo "- Image: \`${image_uri}\`"
+            echo "- Image already exists: \`${IMAGE_EXISTS}\`"
+            echo "- Instance: \`${EC2_INSTANCE_ID}\`"
+            echo ""
+            echo "> Docker build and EC2 deployment will be added after the Dockerfile and Compose configuration are finalized."
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+      # TODO: Dockerfile 경로와 Build Context가 확정되면 이미지가 없을 때만
+      # linux/amd64 이미지를 빌드하고 ECR에 Push하는 단계를 추가한다.
+      # TODO: EC2 배포 디렉터리, Compose 파일 경로, 애플리케이션 서비스 이름,
+      # IMAGE_URI 전달 방식이 확정되면 SSM 배포와 실행 결과 폴링 단계를 추가한다.
+      # TODO: 애플리케이션 헬스체크 URL이 확정되면 재시도와 타임아웃을 포함한
+      # 배포 후 헬스체크 단계를 추가한다.
