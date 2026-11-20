@@ -17,3 +17,7 @@ output "s3_bucket_name" {
 output "github_actions_user_name" {
   value = aws_iam_user.github_actions.name
 }
+
+output "db_access_user_names" {
+  value = [for user in aws_iam_user.db_access : user.name]
+}
