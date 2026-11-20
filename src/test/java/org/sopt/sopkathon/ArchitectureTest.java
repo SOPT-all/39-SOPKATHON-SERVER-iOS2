@@ -98,9 +98,9 @@ public class ArchitectureTest {
     }
 
     @Test
-    void 요청과_응답_DTO는_record로_작성한다() {
+    void DTO는_record로_작성한다() {
         ArchRule rule = classes()
-                .that().resideInAnyPackage("..dto.request..", "..dto.response..")
+                .that().resideInAnyPackage("..dto..")
                 .and().areTopLevelClasses()
                 .should().beAssignableTo(Record.class)
                 .allowEmptyShould(true);
