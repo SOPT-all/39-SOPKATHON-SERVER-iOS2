@@ -41,8 +41,92 @@
 | 시간 설정 | KST 기준 `Clock`, JPA Auditing |
 | API 및 상태 확인 | Swagger UI, Actuator 헬스체크 |
 
+## 📡 API
+
+- 📄 API 명세: [Swagger UI](https://api.sopkathon.chokoring.com/swagger-ui/index.html)
+- 헬스체크: `GET /actuator/health`
+
+### 공통 응답 형식
+
+```json
+{
+  "isSuccess": true,
+  "code": "COMMON200",
+  "message": "성공입니다.",
+  "result": { }
+}
+```
+
+```json
+{
+  "isSuccess": false,
+  "code": "COMMON404",
+  "message": "요청한 API를 찾을 수 없습니다.",
+  "result": null
+}
+```
+
+## 📁 프로젝트 구조
+
+```
+src/main/java/org/sopt/sopkathon
+├── global          # 공통 응답·코드, 예외 처리, 설정, Swagger
+└── {domain}        # code, controller, domain, dto, repository, service
+```
+
+> 도메인 내부 패키지 구조는 [main 코드 컨벤션](docs/MAIN_CONVENTION.md#1-패키지-구조)을 참고하세요.
+
+## ⚙️ 로컬 실행
+
+```bash
+# 1. 환경 변수 설정
+cp dev/.env.example dev/.env    # MYSQL_ROOT_PASSWORD 입력
+
+# 2. MySQL 실행 (첫 실행은 초기화에 10~20초 걸리니 healthy 상태가 된 뒤 서버 실행)
+docker compose --env-file dev/.env -f dev/docker-compose.dev.yml up -d
+
+# 3. 서버 실행
+./gradlew bootRun
+
+# 테스트
+./gradlew test
+```
+
+> ⚠️ 서버를 실행할 때마다 테이블을 새로 만들고 `data.sql`로 초기 데이터를 넣습니다. 재시작하면 기존 데이터는 초기화됩니다.
+
 ## 📋 컨벤션
 
-<!-- 컨벤션 문서 링크를 추가합니다. -->
+### 문서
+- 📘 [main 코드 컨벤션](docs/MAIN_CONVENTION.md)
+- 🤖 [테스트 코드 작성 지침 (AI용)](docs/AI_TEST_GUIDE.md)
+
+### Branch
+
+```
+main ← {타입}/#{이슈번호}-{작업}
+```
+
+- 이슈를 먼저 만들고, 이슈 번호로 브랜치를 만듭니다. (`task/#2-init`)
+- `main`으로 PR을 올리고 리뷰 후 머지합니다.
+
+### Commit
+
+```
+타입: 작업 내용 (#이슈번호)
+```
+
+| 타입 | 설명 |
+|---|---|
+| `init` | 프로젝트 초기 설정 |
+| `feat` | 새로운 기능 |
+| `fix` | 버그 수정 |
+| `hotfix` | 배포된 서버의 긴급 수정 |
+| `refactor` | 동작 변경 없는 코드 개선 |
+| `test` | 테스트 추가·수정 |
+| `docs` | 문서 수정 |
+| `chore` | 빌드, 설정, 의존성 변경 |
+| `infra` | 배포, CI/CD, 인프라 설정 |
+
+예) `feat: 공통 응답, 예외 처리 및 Swagger 설정 추가 (#2)`
 
 <!-- CI/CD, 아키텍처 등 추후 추가 예정 -->
