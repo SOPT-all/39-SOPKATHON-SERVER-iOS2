@@ -1,0 +1,33 @@
+spring:
+  application:
+    name: sopkathon
+
+  profiles:
+    default: dev
+
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  sql:
+    init:
+      mode: always
+      encoding: UTF-8
+
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: create
+    defer-datasource-initialization: true
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: Asia/Seoul
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
