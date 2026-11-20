@@ -1,3 +1,10 @@
+data "aws_caller_identity" "current" {}
+
+locals {
+  # 앱 환경변수(SecureString)가 저장되는 Parameter Store 경로
+  app_parameter_path = "/sopkathon/prod"
+  app_parameter_arn  = "arn:aws:ssm:ap-southeast-2:${data.aws_caller_identity.current.account_id}:parameter${local.app_parameter_path}"
+}
 
 # ========================================
 # 1. VPC 및 Subnet 조회
@@ -70,6 +77,25 @@ resource "aws_iam_role_policy_attachment" "ssm" {
 resource "aws_iam_role_policy_attachment" "ecr" {
   role       = aws_iam_role.ec2.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
+}
+
+# 배포 시 Parameter Store의 앱 환경변수를 읽어 .env를 만든다
+resource "aws_iam_role_policy" "app_parameters" {
+  name = "sopkathon-ec2-read-app-parameters"
+  role = aws_iam_role.ec2.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Sid    = "ReadAppParameters"
+      Effect = "Allow"
+      Action = "ssm:GetParametersByPath"
+      Resource = [
+        local.app_parameter_arn,
+        "${local.app_parameter_arn}/*",
+      ]
+    }]
+  })
 }
 
 resource "aws_iam_instance_profile" "ec2" {

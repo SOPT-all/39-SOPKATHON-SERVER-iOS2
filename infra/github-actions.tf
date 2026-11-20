@@ -44,6 +44,12 @@ resource "aws_iam_user_policy" "github_actions" {
         Action   = "ssm:GetCommandInvocation"
         Resource = "*"
       },
+      {
+        Sid      = "WriteAppParameters"
+        Effect   = "Allow"
+        Action   = "ssm:PutParameter"
+        Resource = "${local.app_parameter_arn}/*"
+      },
     ]
   })
 }

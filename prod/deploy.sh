@@ -11,8 +11,25 @@ aws_region="$1"
 ecr_registry="$2"
 image_uri="$3"
 deploy_dir="/opt/sopkathon"
+parameter_path="/sopkathon/prod"
 
-test -s "${deploy_dir}/.env"
+# Parameter Store의 앱 환경변수로 .env를 만든다
+env_tmp="$(mktemp "${deploy_dir}/.env.XXXXXX")"
+trap 'rm -f "${env_tmp}"' EXIT
+
+aws ssm get-parameters-by-path \
+  --region "${aws_region}" \
+  --path "${parameter_path}" \
+  --with-decryption \
+  --query 'Parameters[].[Name,Value]' \
+  --output text \
+  | while IFS=$'\t' read -r name value; do
+      printf "%s='%s'\n" "${name##*/}" "${value}"
+    done > "${env_tmp}"
+
+test -s "${env_tmp}"
+chmod 0600 "${env_tmp}"
+mv "${env_tmp}" "${deploy_dir}/.env"
 
 export IMAGE_URI="${image_uri}"
 

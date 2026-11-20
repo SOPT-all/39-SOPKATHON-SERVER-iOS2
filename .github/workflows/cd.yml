@@ -74,6 +74,42 @@ jobs:
           aws sts get-caller-identity \
             --query '{Account: Account, Arn: Arn, UserId: UserId}'
 
+      - name: Sync app environment to Parameter Store
+        shell: bash
+        env:
+          DB_URL: ${{ secrets.DB_URL }}
+          DB_USERNAME: ${{ secrets.DB_USERNAME }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          MYSQL_ROOT_PASSWORD: ${{ secrets.MYSQL_ROOT_PASSWORD }}
+          SWAGGER_ENABLED: ${{ vars.SWAGGER_ENABLED }}
+          DOMAIN: ${{ vars.DOMAIN }}
+        run: |
+          set -euo pipefail
+
+          keys=(DB_URL DB_USERNAME DB_PASSWORD MYSQL_ROOT_PASSWORD SWAGGER_ENABLED DOMAIN)
+
+          for key in "${keys[@]}"; do
+            value="${!key}"
+            if [[ -z "${value}" ]]; then
+              echo "Missing Actions secret or variable: ${key}"
+              exit 1
+            fi
+            if [[ "${value}" == *$'\n'* || "${value}" == *$'\t'* || "${value}" == *"'"* ]]; then
+              echo "${key} must not contain newlines, tabs, or single quotes."
+              exit 1
+            fi
+          done
+
+          for key in "${keys[@]}"; do
+            aws ssm put-parameter \
+              --name "/sopkathon/prod/${key}" \
+              --value "${!key}" \
+              --type SecureString \
+              --overwrite \
+              >/dev/null
+            echo "Synced /sopkathon/prod/${key}"
+          done
+
       - name: Check whether image already exists
         id: ecr-image
         shell: bash
@@ -156,7 +192,6 @@ jobs:
                 commands: [
                   "set -eu",
                   "install -d -m 0755 /opt/sopkathon",
-                  "test -s /opt/sopkathon/.env",
                   ("printf %s " + ($compose | @sh) + " | base64 -d > /opt/sopkathon/docker-compose.yml"),
                   ("printf %s " + ($caddy | @sh) + " | base64 -d > /opt/sopkathon/Caddyfile"),
                   ("printf %s " + ($deploy | @sh) + " | base64 -d > /opt/sopkathon/deploy.sh"),
