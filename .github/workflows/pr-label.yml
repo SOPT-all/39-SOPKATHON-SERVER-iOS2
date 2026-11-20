@@ -1,0 +1,41 @@
+name: PR 라벨 자동 할당
+
+# 브랜치 이름의 이슈와 같은 라벨을 PR에 붙인다
+on:
+  pull_request:
+    types: [opened, reopened]
+
+permissions:
+  issues: read
+  pull-requests: write
+
+jobs:
+  copy-labels:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const issueNumber = pr.head.ref.match(/#(\d+)/)?.[1];
+            if (!issueNumber) {
+              core.info(`브랜치 이름(${pr.head.ref})에서 이슈 번호를 찾지 못했습니다.`);
+              return;
+            }
+
+            const { data: issue } = await github.rest.issues.get({
+              ...context.repo,
+              issue_number: Number(issueNumber),
+            });
+            const labels = issue.labels.map(label => label.name);
+            if (labels.length === 0) {
+              core.info(`#${issueNumber}에 라벨이 없습니다.`);
+              return;
+            }
+
+            await github.rest.issues.addLabels({
+              ...context.repo,
+              issue_number: pr.number,
+              labels,
+            });
+            core.info(`#${issueNumber}의 라벨 ${labels.join(', ')}을 PR에 붙였습니다.`);
