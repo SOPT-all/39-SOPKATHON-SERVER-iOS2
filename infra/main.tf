@@ -112,6 +112,9 @@ resource "aws_instance" "server" {
   vpc_security_group_ids = [aws_security_group.server.id]
   iam_instance_profile   = aws_iam_instance_profile.ec2.name
 
+  # 첫 부팅 때 Docker, Compose, AWS CLI 설치
+  user_data = replace(file("${path.module}/user-data.sh"), "\r\n", "\n")
+
   root_block_device {
     volume_size = 20
     volume_type = "gp3"
@@ -120,6 +123,11 @@ resource "aws_instance" "server" {
 
   tags = {
     Name = "sopkathon-server"
+  }
+
+  # 새 Ubuntu AMI가 나와도 인스턴스를 교체하지 않는다
+  lifecycle {
+    ignore_changes = [ami, user_data]
   }
 }
 
