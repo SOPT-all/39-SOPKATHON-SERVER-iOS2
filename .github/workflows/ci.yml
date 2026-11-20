@@ -2,7 +2,7 @@ name: CI
 
 on:
   pull_request:
-    branches: [develop, main]
+    branches: [ develop, main ]
 
 permissions:
   contents: read
@@ -32,72 +32,19 @@ jobs:
       - name: 전체 테스트
         run: ./gradlew --no-daemon test
 
-      - name: JaCoCo 라인 커버리지 집계
-        id: coverage
-        continue-on-error: true
-        run: |
-          python3 - <<'PY'
-          import os
-          import xml.etree.ElementTree as ET
-
-          report = ET.parse("build/reports/jacoco/test/jacocoTestReport.xml")
-          counter = report.getroot().find("./counter[@type='LINE']")
-
-          if counter is not None:
-              covered = int(counter.attrib["covered"])
-              total = covered + int(counter.attrib["missed"])
-              if total > 0:
-                  with open(os.environ["GITHUB_OUTPUT"], "a") as output:
-                      print(f"percent={covered * 100 / total}", file=output)
-          PY
+      - name: Test Coverage Report
+        id: jacoco
+        uses: madrapps/jacoco-report@v1.6.1
+        if: always()
+        with:
+          title: Test Coverage Report
+          paths: ${{ github.workspace }}/build/reports/jacoco/test/jacocoTestReport.xml
+          token: ${{ secrets.GITHUB_TOKEN }}
+          min-coverage-overall: 60
+          min-coverage-changed-files: 60
+          update-comment: true
+          debug-mode: true
 
       - name: Spotless 검사
         if: ${{ !cancelled() }}
         run: ./gradlew --no-daemon spotlessCheck
-
-  coverage-comment:
-    name: Coverage comment
-    needs: checks
-    if: >-
-      ${{
-        !cancelled() &&
-        github.event.pull_request.head.repo.full_name == github.repository
-      }}
-    runs-on: ubuntu-latest
-    permissions:
-      pull-requests: write
-
-    steps:
-      - uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
-        env:
-          COVERAGE: ${{ needs.checks.outputs.coverage }}
-        with:
-          script: |
-            const raw = process.env.COVERAGE;
-            const percent = Number(raw);
-            const marker = '<!-- jacoco-coverage -->';
-            const result = raw && Number.isFinite(percent)
-              ? `라인 커버리지 **${percent.toFixed(2)}%** · 목표 **60%** (${percent >= 60 ? '달성' : '미달'})`
-              : '라인 커버리지를 집계하지 못했어요. CI 실행 결과를 확인해 주세요.';
-            const body = `${marker}\n### JaCoCo 커버리지\n\n${result}`;
-
-            const pr = {
-              ...context.repo,
-              issue_number: context.payload.pull_request.number,
-            };
-
-            const comments = await github.paginate(github.rest.issues.listComments, pr);
-            const previous = comments.find(comment =>
-              comment.user?.login === 'github-actions[bot]' &&
-              comment.body?.startsWith(marker)
-            );
-
-            if (previous) {
-              await github.rest.issues.updateComment({
-                ...context.repo,
-                comment_id: previous.id,
-                body,
-              });
-            } else {
-              await github.rest.issues.createComment({ ...pr, body });
-            }
