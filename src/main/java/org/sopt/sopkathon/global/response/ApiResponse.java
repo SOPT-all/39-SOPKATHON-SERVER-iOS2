@@ -1,7 +1,6 @@
 package org.sopt.sopkathon.global.response;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import org.sopt.sopkathon.global.code.BaseCode;
 import org.sopt.sopkathon.global.code.BaseErrorCode;
 import org.sopt.sopkathon.global.code.BaseSuccessCode;
 
