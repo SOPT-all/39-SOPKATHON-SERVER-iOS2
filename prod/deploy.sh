@@ -55,34 +55,11 @@ compose=(
   -f "${deploy_dir}/docker-compose.yml"
 )
 
-"${compose[@]}" up -d
-"${compose[@]}" exec -T caddy caddy reload --config /etc/caddy/Caddyfile
-
-app_healthy="false"
-for attempt in {1..60}; do
-  app_container_id="$("${compose[@]}" ps -q app)"
-
-  if [[ -n "${app_container_id}" ]]; then
-    health_status="$(
-      docker inspect \
-        --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' \
-        "${app_container_id}"
-    )"
-    echo "App health check ${attempt}: ${health_status}"
-
-    if [[ "${health_status}" == "healthy" ]]; then
-      app_healthy="true"
-      break
-    fi
-  fi
-
-  sleep 5
-done
-
-if [[ "${app_healthy}" != "true" ]]; then
+"${compose[@]}" up -d --wait --wait-timeout 300 || {
   "${compose[@]}" ps
   "${compose[@]}" logs --tail 200 app
   exit 1
-fi
+}
+"${compose[@]}" exec -T caddy caddy reload --config /etc/caddy/Caddyfile
 
 "${compose[@]}" ps
