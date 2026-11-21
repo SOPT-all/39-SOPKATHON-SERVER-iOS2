@@ -34,7 +34,7 @@ class KidQueryRepositoryTest {
     private KidQueryRepository kidQueryRepository;
 
     private Member member;
-    private Kid jiwoo;
+    private Kid mingyo;
     private Kid hajun;
     private Kid jiho;
 
@@ -45,7 +45,7 @@ class KidQueryRepositoryTest {
         Member otherMember = em.persist(Member.builder().name("다른 선생님").build());
 
         hajun = em.persist(kid("이하준"));
-        jiwoo = em.persist(kid("김민교"));
+        mingyo = em.persist(kid("김민교"));
         jiho = em.persist(kid("박지호"));
         Kid deletedKid = kid("최지민");
         deletedKid.delete(LocalDateTime.of(2026, 11, 22, 9, 0));
@@ -53,7 +53,7 @@ class KidQueryRepositoryTest {
         Kid otherKid = em.persist(kid("정지아"));
 
         em.persist(MemberKid.builder().member(member).kid(hajun).build());
-        em.persist(MemberKid.builder().member(member).kid(jiwoo).build());
+        em.persist(MemberKid.builder().member(member).kid(mingyo).build());
         em.persist(MemberKid.builder().member(member).kid(jiho).build());
         em.persist(MemberKid.builder().member(member).kid(deletedKid).build());
         em.persist(MemberKid.builder().member(otherMember).kid(otherKid).build());
@@ -71,7 +71,7 @@ class KidQueryRepositoryTest {
             List<Kid> result = kidQueryRepository.findMyKids(member.getId(), null);
 
             assertThat(result).extracting(Kid::getId)
-                    .containsExactly(jiwoo.getId(), jiho.getId(), hajun.getId());
+                    .containsExactly(mingyo.getId(), jiho.getId(), hajun.getId());
         }
 
         @Test
@@ -88,7 +88,7 @@ class KidQueryRepositoryTest {
             List<Kid> result = kidQueryRepository.findMyKids(member.getId(), "지");
 
             assertThat(result).extracting(Kid::getId)
-                    .containsExactly(jiwoo.getId(), jiho.getId());
+                    .containsExactly(jiho.getId());
         }
     }
 }
