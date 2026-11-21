@@ -2,6 +2,7 @@ package org.sopt.sopkathon.domain.record.service;
 
 import lombok.extern.slf4j.Slf4j;
 import org.sopt.sopkathon.domain.record.code.RecordErrorCode;
+import org.sopt.sopkathon.domain.record.domain.RecordCategory;
 import org.sopt.sopkathon.domain.record.dto.ai.AiRecordExtraction;
 import org.sopt.sopkathon.domain.record.dto.ai.AiRecordItem;
 import org.sopt.sopkathon.global.exception.GeneralException;
@@ -9,10 +10,14 @@ import org.springframework.ai.google.genai.GoogleGenAiChatModel;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
+import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -21,10 +26,6 @@ import java.util.stream.Collectors;
 @Service
 @Transactional(readOnly = true)
 public class RecordAiExtractor {
-
-    private static final String JSON_CODE_BLOCK_PREFIX = "```json";
-    private static final String CODE_BLOCK_PREFIX = "```";
-    private static final String CODE_BLOCK_SUFFIX = "```";
 
     private final GoogleGenAiChatModel googleGenAiChatModel;
     private final ObjectMapper objectMapper;
@@ -117,29 +118,52 @@ public class RecordAiExtractor {
             throw new GeneralException(RecordErrorCode.AI_SERVER_RESPONSE_FAILED);
         }
 
-        return objectMapper.readValue(
-                removeCodeBlock(response),
-                AiRecordExtraction.class
-        );
+        JsonNode records;
+        try {
+            records = objectMapper.readTree(extractJsonObject(response)).path("records");
+        } catch (JacksonException exception) {
+            throw new GeneralException(RecordErrorCode.AI_SERVER_RESPONSE_FAILED);
+        }
+        if (!records.isArray()) {
+            throw new GeneralException(RecordErrorCode.AI_SERVER_RESPONSE_FAILED);
+        }
+
+        List<AiRecordItem> items = new ArrayList<>();
+        for (int i = 0; i < records.size(); i++) {
+            JsonNode item = records.get(i);
+            items.add(new AiRecordItem(
+                    stringOrNull(item.path("kidName")),
+                    toCategory(item.path("category"))
+            ));
+        }
+        return new AiRecordExtraction(items);
     }
 
-    private String removeCodeBlock(String response) {
-        String normalized = response.trim();
-
-        if (normalized.startsWith(JSON_CODE_BLOCK_PREFIX)) {
-            normalized = normalized.substring(JSON_CODE_BLOCK_PREFIX.length()).trim();
-        } else if (normalized.startsWith(CODE_BLOCK_PREFIX)) {
-            normalized = normalized.substring(CODE_BLOCK_PREFIX.length()).trim();
+    // 코드 블록이나 앞뒤 설명 문장이 붙어도 첫 '{' ~ 마지막 '}'만 사용
+    private String extractJsonObject(String response) {
+        int start = response.indexOf('{');
+        int end = response.lastIndexOf('}');
+        if (start < 0 || end < start) {
+            return response;
         }
+        return response.substring(start, end + 1);
+    }
 
-        if (normalized.endsWith(CODE_BLOCK_SUFFIX)) {
-            normalized = normalized.substring(
-                    0,
-                    normalized.length() - CODE_BLOCK_SUFFIX.length()
-            ).trim();
+    private String stringOrNull(JsonNode node) {
+        return node.isString() ? node.asString() : null;
+    }
+
+    // 대소문자는 무시하고, 목록에 없는 값은 null (분류 실패로 처리)
+    private RecordCategory toCategory(JsonNode node) {
+        String value = stringOrNull(node);
+        if (value == null || value.isBlank()) {
+            return null;
         }
-
-        return normalized;
+        try {
+            return RecordCategory.valueOf(value.trim().toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException exception) {
+            return null;
+        }
     }
 
     private void validateExtraction(

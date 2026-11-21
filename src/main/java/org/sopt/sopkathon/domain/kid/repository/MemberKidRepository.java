@@ -8,8 +8,10 @@ import java.util.Optional;
 
 public interface MemberKidRepository extends JpaRepository<MemberKid, Long> {
 
-    List<MemberKid> findAllByMemberId(Long memberId);
+    List<MemberKid> findAllByMemberIdAndKidDeletedAtIsNull(Long memberId);
 
-    Optional<MemberKid> findByMemberIdAndKidId(Long memberId, Long kidId);
+    Optional<MemberKid> findByMemberIdAndKidIdAndKidDeletedAtIsNull(Long memberId, Long kidId
+    );
+
     boolean existsByMemberIdAndKidId(Long memberId, Long kidId);
 }
