@@ -6,6 +6,7 @@ import org.sopt.sopkathon.domain.message.code.ApiMessageSuccess;
 import org.sopt.sopkathon.domain.message.code.MessageErrorCode;
 import org.sopt.sopkathon.domain.message.code.MessageSuccessCode;
 import org.sopt.sopkathon.domain.message.dto.request.MessageCreateRequest;
+import org.sopt.sopkathon.domain.message.dto.request.MessagePolishRequest;
 import org.sopt.sopkathon.domain.message.dto.response.MessageResponse;
 import org.sopt.sopkathon.domain.message.service.MessageService;
 import org.springframework.web.bind.annotation.RestController;
@@ -25,5 +26,15 @@ public class MessageController implements MessageApi {
     })
     public MessageResponse generateDailyBriefing(Long memberId, MessageCreateRequest request) {
         return messageService.generateDailyBriefing(memberId, request);
+    }
+
+    @Override
+    @ApiMessageSuccess(MessageSuccessCode.BRIEFING_REFINED)
+    @ApiMessageErrors({
+            MessageErrorCode.BRIEFING_NOT_FOUND,
+            MessageErrorCode.AI_RESPONSE_FAILED
+    })
+    public MessageResponse refineBriefing(Long memberId, Long briefingId, MessagePolishRequest request) {
+        return messageService.refineBriefing(memberId, briefingId, request);
     }
 }
