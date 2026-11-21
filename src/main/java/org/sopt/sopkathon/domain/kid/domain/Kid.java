@@ -15,6 +15,7 @@ import lombok.NoArgsConstructor;
 import org.sopt.sopkathon.global.domain.BaseTimeEntity;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Getter
 @Entity
@@ -39,11 +40,38 @@ public class Kid extends BaseTimeEntity {
     @Column(columnDefinition = "TEXT")
     private String note;
 
+    private LocalDateTime deletedAt;
+
     @Builder
     private Kid(String name, LocalDate birthDate, Gender gender, String note) {
         this.name = name;
         this.birthDate = birthDate;
         this.gender = gender;
         this.note = note;
+    }
+
+    public void updateProfile(String name, LocalDate birthDate, Gender gender) {
+        if (name != null) {
+            this.name = name;
+        }
+        if (birthDate != null) {
+            this.birthDate = birthDate;
+        }
+        if (gender != null) {
+            this.gender = gender;
+        }
+    }
+
+    // note(특이사항)은 null로 지울 수 있음
+    public void updateNote(String note) {
+        this.note = note;
+    }
+
+    public void delete(LocalDateTime now) {
+        this.deletedAt = now;
+    }
+
+    public boolean isDeleted() {
+        return deletedAt != null;
     }
 }
