@@ -1,0 +1,317 @@
+name: CD
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy
+    if: >-
+      github.event.pull_request.merged == true &&
+      github.event.pull_request.head.ref == 'develop' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      contains(github.event.pull_request.labels.*.name, '🚀 release')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
+      ECR_REPOSITORY_URL: ${{ vars.ECR_REPOSITORY_URL }}
+      EC2_INSTANCE_ID: ${{ vars.EC2_INSTANCE_ID }}
+      IMAGE_TAG: ${{ github.event.pull_request.merge_commit_sha }}
+      IMAGE_URI: ${{ format('{0}:{1}', vars.ECR_REPOSITORY_URL, github.event.pull_request.merge_commit_sha) }}
+      HEALTHCHECK_URL: https://api.sopkathon.chokoring.com/actuator/health
+
+    steps:
+      - name: Check out merged code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
+          persist-credentials: false
+
+      - name: Validate deployment configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          : "${AWS_REGION:?Missing Actions variable: AWS_REGION}"
+          : "${AWS_ACCOUNT_ID:?Missing Actions variable: AWS_ACCOUNT_ID}"
+          : "${ECR_REPOSITORY_URL:?Missing Actions variable: ECR_REPOSITORY_URL}"
+          : "${EC2_INSTANCE_ID:?Missing Actions variable: EC2_INSTANCE_ID}"
+
+          test -f Dockerfile
+          test -f prod/docker-compose.prod.yml
+          test -f prod/Caddyfile
+          test -f prod/deploy.sh
+
+          checked_out_sha="$(git rev-parse HEAD)"
+          if [[ "${checked_out_sha}" != "${IMAGE_TAG}" ]]; then
+            echo "Checked out SHA does not match pull_request.merge_commit_sha."
+            exit 1
+          fi
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+          allowed-account-ids: ${{ env.AWS_ACCOUNT_ID }}
+
+      - name: Verify AWS identity
+        shell: bash
+        run: |
+          aws sts get-caller-identity \
+            --query '{Account: Account, Arn: Arn, UserId: UserId}'
+
+      - name: Sync app environment to Parameter Store
+        shell: bash
+        env:
+          DB_URL: ${{ secrets.DB_URL }}
+          DB_USERNAME: ${{ secrets.DB_USERNAME }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          MYSQL_ROOT_PASSWORD: ${{ secrets.MYSQL_ROOT_PASSWORD }}
+          SWAGGER_ENABLED: ${{ vars.SWAGGER_ENABLED }}
+          DOMAIN: ${{ vars.DOMAIN }}
+        run: |
+          set -euo pipefail
+
+          keys=(DB_URL DB_USERNAME DB_PASSWORD MYSQL_ROOT_PASSWORD SWAGGER_ENABLED DOMAIN)
+
+          for key in "${keys[@]}"; do
+            value="${!key}"
+            if [[ -z "${value}" ]]; then
+              echo "Missing Actions secret or variable: ${key}"
+              exit 1
+            fi
+            if [[ "${value}" == *$'\n'* || "${value}" == *$'\t'* || "${value}" == *"'"* ]]; then
+              echo "${key} must not contain newlines, tabs, or single quotes."
+              exit 1
+            fi
+          done
+
+          for key in "${keys[@]}"; do
+            aws ssm put-parameter \
+              --name "/sopkathon/prod/${key}" \
+              --value "${!key}" \
+              --type SecureString \
+              --overwrite \
+              >/dev/null
+            echo "Synced /sopkathon/prod/${key}"
+          done
+
+      - name: Check whether image already exists
+        id: ecr-image
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          repository_name="${ECR_REPOSITORY_URL##*/}"
+
+          set +e
+          describe_result="$(
+            aws ecr describe-images \
+              --repository-name "${repository_name}" \
+              --image-ids "imageTag=${IMAGE_TAG}" \
+              2>&1
+          )"
+          describe_status=$?
+          set -e
+
+          if [[ ${describe_status} -eq 0 ]]; then
+            image_exists="true"
+          elif [[ "${describe_result}" == *"ImageNotFoundException"* ]]; then
+            image_exists="false"
+          else
+            echo "Failed to check the image in ECR."
+            echo "${describe_result}"
+            exit "${describe_status}"
+          fi
+
+          echo "exists=${image_exists}" >> "${GITHUB_OUTPUT}"
+
+      - name: Log in to Amazon ECR
+        if: steps.ecr-image.outputs.exists != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          registry="${ECR_REPOSITORY_URL%%/*}"
+          aws ecr get-login-password --region "${AWS_REGION}" \
+            | docker login --username AWS --password-stdin "${registry}"
+
+      - name: Build image
+        if: steps.ecr-image.outputs.exists != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          docker build \
+            --platform linux/amd64 \
+            --tag "${IMAGE_URI}" \
+            .
+
+      - name: Push image
+        if: steps.ecr-image.outputs.exists != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          docker push "${IMAGE_URI}"
+
+      - name: Send deployment command
+        id: deploy-command
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          compose_base64="$(base64 < prod/docker-compose.prod.yml | tr -d '\n')"
+          caddy_base64="$(base64 < prod/Caddyfile | tr -d '\n')"
+          deploy_base64="$(base64 < prod/deploy.sh | tr -d '\n')"
+          registry="${ECR_REPOSITORY_URL%%/*}"
+
+          parameters="$(
+            jq -cn \
+              --arg compose "${compose_base64}" \
+              --arg caddy "${caddy_base64}" \
+              --arg deploy "${deploy_base64}" \
+              --arg region "${AWS_REGION}" \
+              --arg registry "${registry}" \
+              --arg image_uri "${IMAGE_URI}" \
+              '{
+                commands: [
+                  "set -eu",
+                  "install -d -m 0755 /opt/sopkathon",
+                  ("printf %s " + ($compose | @sh) + " | base64 -d > /opt/sopkathon/docker-compose.yml"),
+                  ("printf %s " + ($caddy | @sh) + " | base64 -d > /opt/sopkathon/Caddyfile"),
+                  ("printf %s " + ($deploy | @sh) + " | base64 -d > /opt/sopkathon/deploy.sh"),
+                  "chmod 0644 /opt/sopkathon/docker-compose.yml /opt/sopkathon/Caddyfile",
+                  "chmod 0755 /opt/sopkathon/deploy.sh",
+                  ("/opt/sopkathon/deploy.sh " + ($region | @sh) + " " + ($registry | @sh) + " " + ($image_uri | @sh))
+                ]
+              }'
+          )"
+
+          command_id="$(
+            aws ssm send-command \
+              --instance-ids "${EC2_INSTANCE_ID}" \
+              --document-name "AWS-RunShellScript" \
+              --timeout-seconds 900 \
+              --parameters "${parameters}" \
+              --query 'Command.CommandId' \
+              --output text
+          )"
+
+          echo "command_id=${command_id}" >> "${GITHUB_OUTPUT}"
+          echo "SSM command ID: ${command_id}"
+
+      - name: Wait for deployment
+        shell: bash
+        env:
+          COMMAND_ID: ${{ steps.deploy-command.outputs.command_id }}
+        run: |
+          set -euo pipefail
+
+          status="Pending"
+          for attempt in {1..120}; do
+            set +e
+            invocation_result="$(
+              aws ssm get-command-invocation \
+                --command-id "${COMMAND_ID}" \
+                --instance-id "${EC2_INSTANCE_ID}" \
+                --query 'Status' \
+                --output text \
+                2>&1
+            )"
+            invocation_status=$?
+            set -e
+
+            if [[ ${invocation_status} -ne 0 ]]; then
+              if [[ "${invocation_result}" == *"InvocationDoesNotExist"* ]]; then
+                status="Pending"
+              else
+                echo "Failed to read SSM command status."
+                echo "${invocation_result}"
+                exit "${invocation_status}"
+              fi
+            else
+              status="${invocation_result}"
+            fi
+
+            echo "Attempt ${attempt}: ${status:-Pending}"
+
+            case "${status}" in
+              Success)
+                break
+                ;;
+              Failed|Cancelled|TimedOut|Cancelling)
+                aws ssm get-command-invocation \
+                  --command-id "${COMMAND_ID}" \
+                  --instance-id "${EC2_INSTANCE_ID}" \
+                  --query '{Status: Status, Output: StandardOutputContent, Error: StandardErrorContent}'
+                exit 1
+                ;;
+            esac
+
+            sleep 5
+          done
+
+          if [[ "${status}" != "Success" ]]; then
+            echo "Deployment command did not complete before the timeout."
+            aws ssm get-command-invocation \
+              --command-id "${COMMAND_ID}" \
+              --instance-id "${EC2_INSTANCE_ID}" \
+              --query '{Status: Status, Output: StandardOutputContent, Error: StandardErrorContent}' || true
+            exit 1
+          fi
+
+          aws ssm get-command-invocation \
+            --command-id "${COMMAND_ID}" \
+            --instance-id "${EC2_INSTANCE_ID}" \
+            --query '{Status: Status, Output: StandardOutputContent, Error: StandardErrorContent}'
+
+      - name: Verify HTTPS health check
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          response="$(
+            curl \
+              --fail \
+              --silent \
+              --show-error \
+              --retry 12 \
+              --retry-delay 5 \
+              --retry-all-errors \
+              --connect-timeout 5 \
+              --max-time 10 \
+              "${HEALTHCHECK_URL}"
+          )"
+
+          echo "${response}" | jq -e '.status == "UP"' >/dev/null
+
+      - name: Write deployment summary
+        if: success()
+        shell: bash
+        env:
+          IMAGE_EXISTS: ${{ steps.ecr-image.outputs.exists }}
+        run: |
+          {
+            echo "### Deployment succeeded"
+            echo ""
+            echo "- Commit: \`${IMAGE_TAG}\`"
+            echo "- Image: \`${IMAGE_URI}\`"
+            echo "- Reused existing image: \`${IMAGE_EXISTS}\`"
+            echo "- Instance: \`${EC2_INSTANCE_ID}\`"
+            echo "- Health check: \`${HEALTHCHECK_URL}\`"
+          } >> "${GITHUB_STEP_SUMMARY}"

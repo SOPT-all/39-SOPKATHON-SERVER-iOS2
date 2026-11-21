@@ -94,6 +94,34 @@ docker compose --env-file dev/.env -f dev/docker-compose.dev.yml up -d
 
 > ⚠️ 서버를 실행할 때마다 테이블을 새로 만들고 `data.sql`로 초기 데이터를 넣습니다. 재시작하면 기존 데이터는 초기화됩니다.
 
+## 🚢 운영 배포
+
+`🚀 release` 라벨을 붙인 `develop` → `main` PR이 머지되면 GitHub Actions가 배포합니다.
+
+- 라벨을 붙이면 PR 제목이 다음 버전(첫 릴리즈는 `Release v1.0.0`)으로 자동 변경됩니다.
+- 머지되면 해당 버전으로 Git 태그와 GitHub Release가 만들어집니다. 버전은 patch만 1씩 올라갑니다.
+
+```
+GitHub Actions ─ 이미지 빌드 → ECR push
+               ─ Secrets/Variables → Parameter Store(/sopkathon/prod/*)
+               ─ SSM으로 EC2에서 prod/deploy.sh 실행
+EC2 ─ Parameter Store를 읽어 .env 생성 → docker compose (Caddy, App, MySQL)
+```
+
+> ⚠️ 운영 서버도 배포할 때마다 테이블을 새로 만들고 `data.sql`로 초기 데이터를 넣습니다. 배포하면 기존 데이터는 초기화됩니다.
+
+### 운영 DB 접속
+
+AWS IAM User가 필요합니다. (권한 요청은 인프라 담당에게)  
+[Session Manager Plugin](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-working-with-install-plugin.html) 설치 후 실행하고, 창을 띄워둔 채로 접속합니다.
+
+```bash
+aws ssm start-session --region ap-southeast-2 --target <EC2_INSTANCE_ID> --document-name
+AWS-StartPortForwardingSession --parameters "portNumber=3306,localPortNumber=13306"
+```
+
+- DataGrip: `localhost:13306`, DB `sopt_sopkathon`
+
 ## 📋 컨벤션
 
 ### 문서
