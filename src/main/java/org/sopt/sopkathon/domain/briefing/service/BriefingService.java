@@ -1,7 +1,10 @@
 package org.sopt.sopkathon.domain.briefing.service;
 
 import lombok.RequiredArgsConstructor;
+import org.sopt.sopkathon.domain.briefing.code.BriefingErrorCode;
 import org.sopt.sopkathon.domain.briefing.domain.Briefing;
+import org.sopt.sopkathon.domain.briefing.dto.request.BriefingCreateRequest;
+import org.sopt.sopkathon.domain.briefing.dto.request.BriefingRefineRequest;
 import org.sopt.sopkathon.domain.briefing.dto.response.BriefingContentResponse;
 import org.sopt.sopkathon.domain.briefing.dto.response.BriefingKidResponse;
 import org.sopt.sopkathon.domain.briefing.dto.response.BriefingListResponse;
@@ -11,10 +14,14 @@ import org.sopt.sopkathon.domain.briefing.repository.BriefingRepository;
 import org.sopt.sopkathon.domain.briefing.repository.RecordCount;
 import org.sopt.sopkathon.domain.kid.domain.Kid;
 import org.sopt.sopkathon.domain.kid.domain.Parent;
+import org.sopt.sopkathon.domain.gemini.service.GeminiService;
 import org.sopt.sopkathon.domain.kid.repository.KidRepository;
+import org.sopt.sopkathon.domain.kid.repository.MemberKidRepository;
 import org.sopt.sopkathon.domain.kid.repository.ParentRepository;
 import org.sopt.sopkathon.domain.member.code.MemberErrorCode;
 import org.sopt.sopkathon.domain.member.repository.MemberRepository;
+import org.sopt.sopkathon.domain.record.domain.Record;
+import org.sopt.sopkathon.domain.record.repository.RecordRepository;
 import org.sopt.sopkathon.global.exception.GeneralException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,6 +35,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 @Service
@@ -39,6 +47,9 @@ public class BriefingService {
     private final KidRepository kidRepository;
     private final ParentRepository parentRepository;
     private final MemberRepository memberRepository;
+    private final MemberKidRepository memberKidRepository;
+    private final RecordRepository recordRepository;
+    private final GeminiService geminiService;
     private final Clock clock;
 
     // 일일 브리핑 목록 조회
@@ -72,6 +83,81 @@ public class BriefingService {
                 .toList();
 
         return BriefingListResponse.of(date, kids);
+    }
+
+    // 돌봄 기록으로 일일 브리핑 생성 (같은 날짜 브리핑이 있으면 덮어씀)
+    @Transactional
+    public BriefingContentResponse createBriefing(Long memberId, BriefingCreateRequest request) {
+        Long kidId = request.kidId();
+        if (!memberKidRepository.existsByMemberIdAndKidId(memberId, kidId)) {
+            throw new GeneralException(BriefingErrorCode.KID_NOT_FOUND_OR_NOT_ASSIGNED);
+        }
+        Kid kid = kidRepository.findByIdAndDeletedAtIsNull(kidId)
+                .orElseThrow(() -> new GeneralException(BriefingErrorCode.KID_NOT_FOUND_OR_NOT_ASSIGNED));
+
+        LocalDate date = request.date();
+        List<Record> records = recordRepository
+                .findByKid_IdAndRecordedAtGreaterThanEqualAndRecordedAtLessThanOrderByRecordedAtAsc(
+                        kid.getId(), date.atStartOfDay(), date.plusDays(1).atStartOfDay()
+                );
+        if (records.isEmpty()) {
+            throw new GeneralException(BriefingErrorCode.NO_CARE_RECORDS);
+        }
+
+        String recordsText = records.stream()
+                .map(this::formatCareRecord)
+                .collect(Collectors.joining("\n"));
+        String content = askAi(() -> geminiService.ask(recordsText));
+
+        Briefing briefing = briefingRepository.findByKidIdAndBriefingDate(kid.getId(), date)
+                .map(existing -> {
+                    existing.updateContent(content);
+                    return existing;
+                })
+                .orElseGet(() -> briefingRepository.save(Briefing.builder()
+                        .kid(kid)
+                        .briefingDate(date)
+                        .content(content)
+                        .build()));
+
+        return BriefingContentResponse.of(briefing);
+    }
+
+    // AI로 브리핑 메시지 다듬기
+    @Transactional
+    public BriefingContentResponse refineBriefing(Long memberId, Long briefingId, BriefingRefineRequest request) {
+        Briefing briefing = briefingRepository.findById(briefingId)
+                .orElseThrow(() -> new GeneralException(BriefingErrorCode.BRIEFING_NOT_FOUND));
+
+        Kid kid = briefing.getKid();
+        if (kid.isDeleted() || !memberKidRepository.existsByMemberIdAndKidId(memberId, kid.getId())) {
+            throw new GeneralException(BriefingErrorCode.BRIEFING_NOT_FOUND);
+        }
+
+        String refinedContent = askAi(() -> geminiService.refine(briefing.getContent(), request.instruction()));
+
+        briefing.updateContent(refinedContent);
+        return BriefingContentResponse.of(briefing);
+    }
+
+    // AI 호출 실패나 빈 응답은 AI_RESPONSE_FAILED로 변환
+    private String askAi(Supplier<String> call) {
+        String result;
+        try {
+            result = call.get();
+        } catch (RuntimeException exception) {
+            GeneralException error = new GeneralException(BriefingErrorCode.AI_RESPONSE_FAILED);
+            error.initCause(exception);
+            throw error;
+        }
+        if (result == null || result.isBlank()) {
+            throw new GeneralException(BriefingErrorCode.AI_RESPONSE_FAILED);
+        }
+        return result;
+    }
+
+    private String formatCareRecord(Record record) {
+        return "%s %s".formatted(record.getRecordedAt(), record.getCategory());
     }
 
     private BriefingKidResponse toKidResponse(
