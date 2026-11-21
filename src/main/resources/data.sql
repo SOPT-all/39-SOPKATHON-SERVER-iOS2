@@ -3,7 +3,7 @@
 INSERT INTO member (name) VALUES ('테스트 선생님');
 
 -- 아이
--- 1~4: 오늘 기록 있음 → 브리핑 목록에 나옴 (recordedKidCount = 4)
+-- 1~4: 오늘 기록 있음 → 브리핑 목록에 나옴 (recordedKidNames 4명)
 -- 5: 어제 기록만 있음 → 안 나옴
 -- 6: 오늘 기록이 있지만 삭제됨 → 안 나옴
 INSERT INTO kid (name, birth_date, gender, note, deleted_at, created_at, updated_at) VALUES
