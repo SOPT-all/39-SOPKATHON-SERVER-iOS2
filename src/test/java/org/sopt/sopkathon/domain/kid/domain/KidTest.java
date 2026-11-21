@@ -24,9 +24,9 @@ class KidTest {
         void 전달값만_수정() {
             Kid kid = kid();
 
-            kid.updateProfile("김지우", null, Gender.MALE);
+            kid.updateProfile("노정완", null, Gender.MALE);
 
-            assertThat(kid.getName()).isEqualTo("김지우");
+            assertThat(kid.getName()).isEqualTo("노정완");
             assertThat(kid.getBirthDate()).isEqualTo(BIRTH_DATE);
             assertThat(kid.getGender()).isEqualTo(Gender.MALE);
         }
