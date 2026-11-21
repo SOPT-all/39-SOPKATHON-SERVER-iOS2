@@ -50,4 +50,16 @@ public class Parent {
         this.phone = phone;
         this.relationship = relationship;
     }
+
+    public void update(String name, String phone, Relationship relationship) {
+        if (name != null) {
+            this.name = name;
+        }
+        if (phone != null) {
+            this.phone = phone;
+        }
+        if (relationship != null) {
+            this.relationship = relationship;
+        }
+    }
 }
