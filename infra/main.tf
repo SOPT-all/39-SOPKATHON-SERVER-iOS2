@@ -79,6 +79,12 @@ resource "aws_iam_role_policy_attachment" "ecr" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
 }
 
+# S3 버킷 관리
+resource "aws_iam_role_policy_attachment" "ec2_s3" {
+    role = aws_iam_role.ec2.name
+    policy_arn = "arn:aws:iam::aws:policy/AmazonS3FullAccess"
+}
+
 # 배포 시 Parameter Store의 앱 환경변수를 읽어 .env를 만든다
 resource "aws_iam_role_policy" "app_parameters" {
   name = "sopkathon-ec2-read-app-parameters"
