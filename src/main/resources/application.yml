@@ -1,7 +1,7 @@
 app:
   s3:
+    bucket: sopkathon-test-bucket
     enabled: ${S3_ENABLED:false}
-    bucket: ${AWS_S3_BUCKET:}
     region: ${AWS_REGION:ap-southeast-2}
     upload-prefix: ${AWS_S3_UPLOAD_PREFIX:images}
     presigned-url-expiration-minutes: ${AWS_S3_PRESIGNED_URL_EXPIRATION_MINUTES:5}
