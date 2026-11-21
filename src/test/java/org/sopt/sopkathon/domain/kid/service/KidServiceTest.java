@@ -18,6 +18,7 @@ import org.sopt.sopkathon.domain.kid.dto.request.UpdateKidRequest;
 import org.sopt.sopkathon.domain.kid.dto.request.UpdateParentRequest;
 import org.sopt.sopkathon.domain.kid.dto.response.UpdateKidResponse;
 import org.sopt.sopkathon.domain.kid.dto.response.CreateKidResponse;
+import org.sopt.sopkathon.domain.kid.dto.response.KidDetailResponse;
 import org.sopt.sopkathon.domain.kid.dto.response.KidListResponse;
 import org.sopt.sopkathon.domain.kid.dto.response.KidResponse;
 import org.sopt.sopkathon.domain.kid.repository.KidQueryRepository;
@@ -325,6 +326,67 @@ class KidServiceTest {
                 given(kidRepository.findByIdAndDeletedAtIsNull(KID_ID)).willReturn(Optional.empty());
 
                 assertThatThrownBy(() -> kidService.deleteKid(MEMBER_ID, KID_ID))
+                        .isInstanceOf(GeneralException.class)
+                        .satisfies(ex -> assertThat(((GeneralException) ex).getErrorCode())
+                                .isEqualTo(KidErrorCode.KID_NOT_FOUND));
+            }
+        }
+    }
+
+    @Nested
+    @DisplayName("아이 정보 조회(getKid)")
+    class GetKid {
+
+        @Nested
+        @DisplayName("성공")
+        class Success {
+
+            @Test
+            @DisplayName("담당하는 아이면 아이 정보와 첫 번째 학부모 정보를 반환한다")
+            void 아이정보와_학부모정보_반환() {
+                Kid kid = kid();
+                given(memberRepository.existsById(MEMBER_ID)).willReturn(true);
+                given(memberKidRepository.existsByMemberIdAndKidId(MEMBER_ID, KID_ID)).willReturn(true);
+                given(kidRepository.findByIdAndDeletedAtIsNull(KID_ID)).willReturn(Optional.of(kid));
+                given(parentRepository.findFirstByKidIdOrderByIdAsc(KID_ID)).willReturn(Optional.of(parent(kid)));
+
+                KidDetailResponse response = kidService.getKid(MEMBER_ID, KID_ID);
+
+                assertThat(response.kidId()).isEqualTo(KID_ID);
+                assertThat(response.name()).isEqualTo("김솝트");
+                assertThat(response.birthDate()).isEqualTo(BIRTH_DATE);
+                assertThat(response.gender()).isEqualTo(Gender.FEMALE);
+                assertThat(response.note()).isEqualTo("견과류 알레르기가 있어요.");
+                assertThat(response.parent().name()).isEqualTo("김엄마");
+                assertThat(response.parent().phone()).isEqualTo("010-1234-5678");
+                assertThat(response.parent().relationship()).isEqualTo(Relationship.MOTHER);
+            }
+
+            @Test
+            @DisplayName("학부모가 없으면 parent를 null로 반환한다")
+            void 학부모없음_parent_null() {
+                given(memberRepository.existsById(MEMBER_ID)).willReturn(true);
+                given(memberKidRepository.existsByMemberIdAndKidId(MEMBER_ID, KID_ID)).willReturn(true);
+                given(kidRepository.findByIdAndDeletedAtIsNull(KID_ID)).willReturn(Optional.of(kid()));
+                given(parentRepository.findFirstByKidIdOrderByIdAsc(KID_ID)).willReturn(Optional.empty());
+
+                KidDetailResponse response = kidService.getKid(MEMBER_ID, KID_ID);
+
+                assertThat(response.parent()).isNull();
+            }
+        }
+
+        @Nested
+        @DisplayName("실패")
+        class Failure {
+
+            @Test
+            @DisplayName("회원이 담당하지 않는 아이면 KID_NOT_FOUND를 던진다")
+            void 담당아님_KID_NOT_FOUND() {
+                given(memberRepository.existsById(MEMBER_ID)).willReturn(true);
+                given(memberKidRepository.existsByMemberIdAndKidId(MEMBER_ID, KID_ID)).willReturn(false);
+
+                assertThatThrownBy(() -> kidService.getKid(MEMBER_ID, KID_ID))
                         .isInstanceOf(GeneralException.class)
                         .satisfies(ex -> assertThat(((GeneralException) ex).getErrorCode())
                                 .isEqualTo(KidErrorCode.KID_NOT_FOUND));

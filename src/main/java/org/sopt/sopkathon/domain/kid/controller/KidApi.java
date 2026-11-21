@@ -10,6 +10,7 @@ import org.sopt.sopkathon.domain.kid.dto.response.UpdateKidResponse;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.sopt.sopkathon.domain.kid.dto.response.CreateKidResponse;
 import org.sopt.sopkathon.domain.kid.dto.response.DeleteKidResponse;
+import org.sopt.sopkathon.domain.kid.dto.response.KidDetailResponse;
 import org.sopt.sopkathon.domain.kid.dto.response.KidListResponse;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -30,6 +31,15 @@ public interface KidApi {
             @RequestHeader("Member-Id") Long memberId,
             @Parameter(description = "아이 이름 검색어, 미입력 시 전체", example = "정완")
             @RequestParam(required = false) String keyword
+    );
+
+    @Operation(summary = "아이 정보 조회", description = "아이 정보 수정 화면에 채울 기존 아이 정보와 학부모 연락처를 조회합니다.")
+    @GetMapping("/{kidId}")
+    KidDetailResponse getKid(
+            @Parameter(hidden = true)
+            @RequestHeader("Member-Id") Long memberId,
+            @Parameter(description = "아이 ID", example = "1")
+            @PathVariable Long kidId
     );
 
     @Operation(summary = "아이 등록", description = "아이 정보와 학부모 연락처를 등록합니다.")

@@ -10,6 +10,7 @@ import org.sopt.sopkathon.domain.kid.dto.request.UpdateKidRequest;
 import org.sopt.sopkathon.domain.kid.dto.response.UpdateKidResponse;
 import org.sopt.sopkathon.domain.kid.dto.response.CreateKidResponse;
 import org.sopt.sopkathon.domain.kid.dto.response.DeleteKidResponse;
+import org.sopt.sopkathon.domain.kid.dto.response.KidDetailResponse;
 import org.sopt.sopkathon.domain.kid.dto.response.KidListResponse;
 import org.sopt.sopkathon.domain.kid.service.KidService;
 import org.sopt.sopkathon.domain.member.code.ApiMemberErrors;
@@ -29,6 +30,15 @@ public class KidController implements KidApi {
     @ApiMemberErrors({MemberErrorCode.MEMBER_NOT_FOUND})
     public KidListResponse getKids(Long memberId, String keyword) {
         return kidService.getKids(memberId, keyword);
+    }
+
+    @Override
+    @ApiKidSuccess(KidSuccessCode.KID_DETAIL_OK)
+    @ApiCommonErrors({CommonErrorCode.BAD_REQUEST})
+    @ApiMemberErrors({MemberErrorCode.MEMBER_NOT_FOUND})
+    @ApiKidErrors({KidErrorCode.KID_NOT_FOUND})
+    public KidDetailResponse getKid(Long memberId, Long kidId) {
+        return kidService.getKid(memberId, kidId);
     }
 
     @Override
