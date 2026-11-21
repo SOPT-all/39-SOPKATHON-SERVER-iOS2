@@ -29,10 +29,10 @@ public class ImageService {
         PresignedPutObjectRequest presignedRequest =
                 createPresignedRequest(request, objectKey);
 
-        return new PresignedUrlResponse(
-                presignedRequest.url().toString(),
-                objectKey
-        );
+        return PresignedUrlResponse.builder()
+                .presignedUrl(presignedRequest.url().toString())
+                .fileKey(objectKey)
+                .build();
     }
 
     private String createObjectKey(String fileName) {
