@@ -10,6 +10,7 @@ import org.sopt.sopkathon.domain.kid.dto.request.ParentRequest;
 import org.sopt.sopkathon.domain.kid.dto.request.UpdateKidRequest;
 import org.sopt.sopkathon.domain.kid.dto.request.UpdateParentRequest;
 import org.sopt.sopkathon.domain.kid.dto.response.CreateKidResponse;
+import org.sopt.sopkathon.domain.kid.dto.response.KidDetailResponse;
 import org.sopt.sopkathon.domain.kid.dto.response.KidListResponse;
 import org.sopt.sopkathon.domain.kid.dto.response.UpdateKidResponse;
 import org.sopt.sopkathon.domain.kid.repository.KidQueryRepository;
@@ -40,6 +41,13 @@ public class KidService {
     public KidListResponse getKids(Long memberId, String keyword) {
         validateMemberExists(memberId);
         return KidListResponse.of(kidQueryRepository.findMyKids(memberId, keyword));
+    }
+
+    // 아이 정보 조회
+    public KidDetailResponse getKid(Long memberId, Long kidId) {
+        Kid kid = findMyKid(memberId, kidId);
+        Parent parent = parentRepository.findFirstByKidIdOrderByIdAsc(kidId).orElse(null);
+        return KidDetailResponse.of(kid, parent);
     }
 
     // 아이 등록
