@@ -85,7 +85,7 @@ public class HomeService {
         return new HomeResponse.TodayRecord(
                 record.getId(),
                 kid.getName(),
-                (int) (kid.getId() % 4),
+                (int) (kid.getId()+1 % 4),
                 record.getCategory(),
                 record.getCreatedAt()
         );
