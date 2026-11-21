@@ -5,7 +5,7 @@ import jakarta.validation.constraints.NotNull;
 
 import java.time.LocalDate;
 
-public record MessageRequest(
+public record MessageCreateRequest(
         @NotNull
         @Schema(description = "아이 id", example = "1")
         Long kidId,

@@ -5,7 +5,7 @@ import org.sopt.sopkathon.domain.message.code.ApiMessageErrors;
 import org.sopt.sopkathon.domain.message.code.ApiMessageSuccess;
 import org.sopt.sopkathon.domain.message.code.MessageErrorCode;
 import org.sopt.sopkathon.domain.message.code.MessageSuccessCode;
-import org.sopt.sopkathon.domain.message.dto.request.MessageRequest;
+import org.sopt.sopkathon.domain.message.dto.request.MessageCreateRequest;
 import org.sopt.sopkathon.domain.message.dto.response.MessageResponse;
 import org.sopt.sopkathon.domain.message.service.MessageService;
 import org.springframework.web.bind.annotation.RestController;
@@ -23,7 +23,7 @@ public class MessageController implements MessageApi {
             MessageErrorCode.NO_CARE_RECORDS,
             MessageErrorCode.AI_RESPONSE_FAILED
     })
-    public MessageResponse generateDailyBriefing(Long memberId, MessageRequest request) {
+    public MessageResponse generateDailyBriefing(Long memberId, MessageCreateRequest request) {
         return messageService.generateDailyBriefing(memberId, request);
     }
 }

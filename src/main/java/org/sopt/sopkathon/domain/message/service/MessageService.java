@@ -7,7 +7,7 @@ import org.sopt.sopkathon.domain.kid.repository.KidRepository;
 import org.sopt.sopkathon.domain.kid.repository.MemberKidRepository;
 import org.sopt.sopkathon.domain.message.code.MessageErrorCode;
 import org.sopt.sopkathon.domain.message.domain.Message;
-import org.sopt.sopkathon.domain.message.dto.request.MessageRequest;
+import org.sopt.sopkathon.domain.message.dto.request.MessageCreateRequest;
 import org.sopt.sopkathon.domain.message.dto.response.MessageResponse;
 import org.sopt.sopkathon.domain.message.repository.MessageRepository;
 import org.sopt.sopkathon.domain.record.domain.Record;
@@ -35,7 +35,7 @@ public class MessageService {
     private final GeminiService geminiService;
 
     @Transactional
-    public MessageResponse generateDailyBriefing(Long memberId, MessageRequest request) {
+    public MessageResponse generateDailyBriefing(Long memberId, MessageCreateRequest request) {
         Long kidId = request.kidId();
 
         if (!memberKidRepository.existsByMemberIdAndKidId(memberId, kidId)) {

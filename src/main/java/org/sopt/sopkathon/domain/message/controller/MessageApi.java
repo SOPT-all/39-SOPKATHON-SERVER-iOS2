@@ -4,7 +4,7 @@ package org.sopt.sopkathon.domain.message.controller;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import org.sopt.sopkathon.domain.message.dto.request.MessageRequest;
+import org.sopt.sopkathon.domain.message.dto.request.MessageCreateRequest;
 import org.sopt.sopkathon.domain.message.dto.response.MessageResponse;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -19,6 +19,6 @@ public interface MessageApi {
     @PostMapping("/briefings")
     MessageResponse generateDailyBriefing(
             @RequestHeader("Member-Id") Long memberId,
-            @Valid @RequestBody MessageRequest request
+            @Valid @RequestBody MessageCreateRequest request
     );
 }
