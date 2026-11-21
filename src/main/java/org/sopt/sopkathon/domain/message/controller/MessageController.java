@@ -29,7 +29,7 @@ public class MessageController implements MessageApi {
             MessageErrorCode.NO_CARE_RECORDS,
             MessageErrorCode.AI_RESPONSE_FAILED
     })
-    public MessageResponse generateDailyBriefing(MessageRequest request) {
-        return messageService.generateDailyBriefing(request);
+    public MessageResponse generateDailyBriefing(Long memberId, MessageRequest request) {
+        return messageService.generateDailyBriefing(memberId, request);
     }
 }
