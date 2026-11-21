@@ -24,6 +24,9 @@ app:
       [돌봄 기록]
       {records}
 
+server:
+  forward-headers-strategy: framework
+
 spring:
   application:
     name: sopkathon
