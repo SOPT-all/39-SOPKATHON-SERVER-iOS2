@@ -165,11 +165,6 @@ public class RecordAiExtractor {
             if (categoryRequired && record.category() == null) {
                 throw new GeneralException(RecordErrorCode.RECORD_EXTRACTION_FAILED);
             }
-            if (record.kidName() != null
-                    && !record.kidName().isBlank()
-                    && !assignedKidNames.contains(record.kidName())) {
-                throw new GeneralException(RecordErrorCode.KID_NOT_FOUND_OR_NOT_ASSIGNED);
-            }
         }
     }
 

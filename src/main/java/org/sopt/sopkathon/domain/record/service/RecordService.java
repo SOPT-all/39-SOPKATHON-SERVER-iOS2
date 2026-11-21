@@ -108,9 +108,23 @@ public class RecordService {
             List<MemberKid> assignedMemberKids,
             AiRecordItem item
     ) {
+        String extractedName = normalizeExtractedName(item.kidName());
+        List<Kid> exactMatchedKids = assignedMemberKids.stream()
+                .map(MemberKid::getKid)
+                .filter(kid -> normalizeAssignedName(kid.getName()).equals(extractedName))
+                .toList();
+
+        if (exactMatchedKids.size() == 1) {
+            return exactMatchedKids.getFirst();
+        }
+        if (exactMatchedKids.size() > 1) {
+            throw new GeneralException(RecordErrorCode.KID_NOT_FOUND_OR_NOT_ASSIGNED);
+        }
+
+        String relaxedName = removeKoreanSubjectParticle(extractedName);
         List<Kid> matchedKids = assignedMemberKids.stream()
                 .map(MemberKid::getKid)
-                .filter(kid -> kid.getName().equals(item.kidName()))
+                .filter(kid -> normalizeAssignedName(kid.getName()).endsWith(relaxedName))
                 .toList();
 
         if (matchedKids.size() != 1) {
@@ -118,6 +132,29 @@ public class RecordService {
         }
 
         return matchedKids.getFirst();
+    }
+
+    private String normalizeExtractedName(String extractedName) {
+        return extractedName.trim().replaceAll("\\s+", "");
+    }
+
+    private String removeKoreanSubjectParticle(String name) {
+        if (name.length() > 1 && hasKoreanSubjectParticle(name)) {
+            return name.substring(0, name.length() - 1);
+        }
+
+        return name;
+    }
+
+    private boolean hasKoreanSubjectParticle(String name) {
+        return name.endsWith("은")
+                || name.endsWith("는")
+                || name.endsWith("이")
+                || name.endsWith("가");
+    }
+
+    private String normalizeAssignedName(String assignedName) {
+        return assignedName.trim().replaceAll("\\s+", "");
     }
 
     private Record createRecord(
