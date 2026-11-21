@@ -11,3 +11,4 @@ public record CreateKidResponse(
         return new CreateKidResponse(kid.getId());
     }
 }
+
