@@ -69,7 +69,8 @@ public class RecordService {
         Kid fixedKid = request.kidId() != null
                 ? findAssignedKid(memberId, request.kidId())
                 : null;
-        List<MemberKid> assignedMemberKids = memberKidRepository.findAllByMemberId(memberId);
+        List<MemberKid> assignedMemberKids =
+                memberKidRepository.findAllByMemberIdAndKidDeletedAtIsNull(memberId);
         List<String> assignedKidNames = fixedKid != null
                 ? List.of(fixedKid.getName())
                 : assignedMemberKids.stream()
@@ -97,7 +98,8 @@ public class RecordService {
     }
 
     private Kid findAssignedKid(Long memberId, Long kidId) {
-        return memberKidRepository.findByMemberIdAndKidId(memberId, kidId)
+        return memberKidRepository
+                .findByMemberIdAndKidIdAndKidDeletedAtIsNull(memberId, kidId)
                 .map(MemberKid::getKid)
                 .orElseThrow(() -> new GeneralException(
                         RecordErrorCode.KID_NOT_FOUND_OR_NOT_ASSIGNED
