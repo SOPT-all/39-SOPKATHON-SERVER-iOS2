@@ -55,6 +55,16 @@ compose=(
   -f "${deploy_dir}/docker-compose.yml"
 )
 
+"${compose[@]}" up -d --wait --wait-timeout 300 mysql
+"${compose[@]}" stop app
+"${compose[@]}" exec -T mysql sh -c '
+  MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql -uroot -e "
+    DROP DATABASE IF EXISTS \`$MYSQL_DATABASE\`;
+    CREATE DATABASE \`$MYSQL_DATABASE\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+  "
+'
+echo "Reset database"
+
 "${compose[@]}" up -d --wait --wait-timeout 300 || {
   "${compose[@]}" ps
   "${compose[@]}" logs --tail 200 app
