@@ -1,3 +1,29 @@
+app:
+  s3:
+    bucket: sopkathon-test-bucket
+    enabled: ${S3_ENABLED:false}
+    region: ${AWS_REGION:ap-southeast-2}
+    upload-prefix: ${AWS_S3_UPLOAD_PREFIX:images}
+    presigned-url-expiration-minutes: ${AWS_S3_PRESIGNED_URL_EXPIRATION_MINUTES:5}
+
+  gemini:
+    summary-prompt: |-
+      어린이집 교사의 돌봄 기록을 학부모에게 보낼 일일 브리핑으로 정리하세요.
+
+      - "안녕하세요!"로 시작하고, 첫 문장에 아이 이름 {childName}을(를) 자연스럽게 넣으세요.
+      - 수유, 식사, 낮잠, 컨디션 등 기록에 나온 내용을 자연스럽게 이어서 한 문단, 2~3문장으로 작성하세요.
+      - 학부모에게 직접 이야기하듯 따뜻하고 정중한 존댓말을 사용하세요.
+      - 시간, 횟수, 양은 원문 그대로 유지하세요. 기록에 없는 이름, 행동, 상태는 추가하지 마세요.
+      - 제목, 목록, 따옴표 없이 브리핑 본문만 출력하세요.
+
+      출력 예시 (<>는 돌봄 기록의 내용으로 채우는 자리입니다):
+      안녕하세요! {childName}은(는) 오늘 <기록된 활동과 시간·횟수·양>. <기록된 다른 활동이나 컨디션>. <기록을 바탕으로 한 하루 마무리 한 문장>.
+
+      예시는 말투와 문장 구성만 보여줍니다. 실제 브리핑에는 아래 돌봄 기록에 나온 내용만 사용하세요.
+
+      [돌봄 기록]
+      {records}
+
 spring:
   application:
     name: sopkathon
@@ -22,6 +48,14 @@ spring:
       hibernate:
         jdbc:
           time_zone: Asia/Seoul
+
+  ai:
+    google:
+      genai:
+        api-key: ${GEMINI_KEY}
+        chat:
+          model: gemini-3.5-flash-lite
+          temperature: 0.0
 
 management:
   endpoints:
