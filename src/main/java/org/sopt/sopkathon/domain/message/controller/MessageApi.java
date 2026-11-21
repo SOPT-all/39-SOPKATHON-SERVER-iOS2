@@ -16,7 +16,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 public interface MessageApi {
 
     @Operation(summary = "돌봄 기록으로 일일 브리핑 생성")
-    @PostMapping("/daily-briefings")
+    @PostMapping("/briefings")
     MessageResponse generateDailyBriefing(
             @RequestHeader("Member-Id") Long memberId,
             @Valid @RequestBody MessageRequest request
