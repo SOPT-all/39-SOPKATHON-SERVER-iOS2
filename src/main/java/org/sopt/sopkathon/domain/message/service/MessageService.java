@@ -8,6 +8,7 @@ import org.sopt.sopkathon.domain.kid.repository.MemberKidRepository;
 import org.sopt.sopkathon.domain.message.code.MessageErrorCode;
 import org.sopt.sopkathon.domain.message.domain.Message;
 import org.sopt.sopkathon.domain.message.dto.request.MessageCreateRequest;
+import org.sopt.sopkathon.domain.message.dto.request.MessagePolishRequest;
 import org.sopt.sopkathon.domain.message.dto.response.MessageResponse;
 import org.sopt.sopkathon.domain.message.repository.MessageRepository;
 import org.sopt.sopkathon.domain.record.domain.Record;
@@ -72,6 +73,37 @@ public class MessageService {
         }
 
         return saveBriefing(kid, date, briefing);
+    }
+
+    @Transactional
+    public MessageResponse refineBriefing(
+            Long memberId,
+            Long briefingId,
+            MessagePolishRequest request
+    ) {
+        Message message = messageRepository.findById(briefingId)
+                .orElseThrow(() -> new GeneralException(MessageErrorCode.BRIEFING_NOT_FOUND));
+
+        Kid kid = message.getKid();
+        if (kid.isDeleted() || !memberKidRepository.existsByMemberIdAndKidId(memberId, kid.getId())) {
+            throw new GeneralException(MessageErrorCode.BRIEFING_NOT_FOUND);
+        }
+
+        String refinedContent;
+        try {
+            refinedContent = geminiService.refine(message.getContent(), request.instruction());
+        } catch (RuntimeException exception) {
+            GeneralException error = new GeneralException(MessageErrorCode.AI_RESPONSE_FAILED);
+            error.initCause(exception);
+            throw error;
+        }
+
+        if (refinedContent == null || refinedContent.isBlank()) {
+            throw new GeneralException(MessageErrorCode.AI_RESPONSE_FAILED);
+        }
+
+        message.updateContent(refinedContent);
+        return new MessageResponse(message.getId(), message.getContent());
     }
 
     private MessageResponse saveBriefing(Kid kid, LocalDate date, String content) {
