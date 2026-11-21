@@ -12,6 +12,7 @@ services:
       DB_PASSWORD: ${DB_PASSWORD}
       SWAGGER_ENABLED: ${SWAGGER_ENABLED}
       AWS_S3_BUCKET: ${AWS_S3_BUCKET}
+      GEMINI_KEY: ${GEMINI_KEY}
       TZ: Asia/Seoul
     depends_on:
       mysql:
