@@ -1,6 +1,7 @@
 package org.sopt.sopkathon.domain.image.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirements;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.sopt.sopkathon.domain.image.dto.request.PresignedUrlRequest;
@@ -17,6 +18,7 @@ public interface ImageApi {
             summary = "이미지 업로드 URL 발급",
             description = "S3에 이미지를 직접 업로드할 수 있는 5분짜리 PUT URL을 발급합니다."
     )
+    @SecurityRequirements
     @PostMapping("/presigned-url")
     PresignedUrlResponse getPresignedUrl(
             @Valid @RequestBody PresignedUrlRequest request
