@@ -44,9 +44,8 @@ public class HomeService {
         Member member = memberRepository.findById(memberId)
                 .orElseThrow(() -> new GeneralException(MemberErrorCode.MEMBER_NOT_FOUND));
 
-        List<Kid> kids = memberKidRepository.findAllByMemberId(memberId).stream()
+        List<Kid> kids = memberKidRepository.findAllByMemberIdAndKidDeletedAtIsNull(memberId).stream()
                 .map(MemberKid::getKid)
-                .filter(kid -> !kid.isDeleted())
                 .toList();
 
         if (kids.isEmpty()) {
