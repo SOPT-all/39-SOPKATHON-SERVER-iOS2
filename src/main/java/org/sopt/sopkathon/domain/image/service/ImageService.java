@@ -36,7 +36,7 @@ public class ImageService {
     }
 
     private String createObjectKey(String fileName) {
-        String sanitizedFileName = fileName.replaceAll("[^A-Za-z0-9._-]", "_");
+        String sanitizedFileName = fileName.replaceAll("[^가-힣A-Za-z0-9._-]", "_");
         String prefix = s3Properties.uploadPrefix();
 
         if (prefix == null || prefix.isBlank()) {
