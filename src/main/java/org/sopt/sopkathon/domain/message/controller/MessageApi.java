@@ -2,16 +2,15 @@ package org.sopt.sopkathon.domain.message.controller;
 
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import org.sopt.sopkathon.domain.message.dto.request.MessageRequest;
+import org.sopt.sopkathon.domain.message.dto.request.MessageCreateRequest;
+import org.sopt.sopkathon.domain.message.dto.request.MessagePolishRequest;
 import org.sopt.sopkathon.domain.message.dto.response.MessageResponse;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
-import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.*;
 
-@Tag(name = "AI 메세지 생성", description = "돌봄 기록으로 브리핑 메시지 생성 API")
+@Tag(name = "AI 메세지", description = "돌봄 기록으로 브리핑 메시지 관련 API")
 @RequestMapping("/api/v1")
 public interface MessageApi {
 
@@ -19,6 +18,14 @@ public interface MessageApi {
     @PostMapping("/briefings")
     MessageResponse generateDailyBriefing(
             @RequestHeader("Member-Id") Long memberId,
-            @Valid @RequestBody MessageRequest request
+            @Valid @RequestBody MessageCreateRequest request
+    );
+
+    @Operation(summary = "AI로 브리핑 메시지 다듬기")
+    @PatchMapping("/briefings/{briefingId}/refine")
+    MessageResponse refineBriefing(
+            @RequestHeader("Member-Id") Long memberId,
+            @Parameter(description = "브리핑 메시지 ID", example = "5") Long briefingId,
+            @Valid @RequestBody MessagePolishRequest request
     );
 }

@@ -15,13 +15,16 @@ public class GeminiService {
 
     private final GoogleGenAiChatModel googleGenAiChatModel;
     private final String summaryPrompt;
+    private final String refinePrompt;
 
     public GeminiService(
             GoogleGenAiChatModel googleGenAiChatModel,
-            @Value("${app.gemini.summary-prompt}") String summaryPrompt
+            @Value("${app.gemini.summary-prompt}") String summaryPrompt,
+            @Value("${app.gemini.refine-prompt}") String refinePrompt
     ) {
         this.googleGenAiChatModel = googleGenAiChatModel;
         this.summaryPrompt = summaryPrompt;
+        this.refinePrompt = refinePrompt;
     }
 
     public String ask(String records) {
@@ -41,5 +44,9 @@ public class GeminiService {
                     exception.getClass().getSimpleName());
             throw exception;
         }
+    }
+
+    public String refine(String content, String instruction) {
+        return googleGenAiChatModel.call(refinePrompt.formatted(content, instruction));
     }
 }
