@@ -1,4 +1,4 @@
-package org.sopt.sopkathon.domain.message.domain;
+package org.sopt.sopkathon.domain.briefing.domain;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -24,11 +24,11 @@ import java.time.LocalDate;
 @Getter
 @Entity
 @Table(
-        name = "message",
+        name = "briefing",
         uniqueConstraints = @UniqueConstraint(columnNames = {"kid_id", "briefing_date"})
 )
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class Message extends BaseTimeEntity {
+public class Briefing extends BaseTimeEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -46,9 +46,13 @@ public class Message extends BaseTimeEntity {
     private LocalDate briefingDate;
 
     @Builder
-    private Message(Kid kid, String content, LocalDate briefingDate) {
+    private Briefing(Kid kid, String content, LocalDate briefingDate) {
         this.kid = kid;
         this.content = content;
         this.briefingDate = briefingDate;
+    }
+
+    public void updateContent(String content) {
+        this.content = content;
     }
 }

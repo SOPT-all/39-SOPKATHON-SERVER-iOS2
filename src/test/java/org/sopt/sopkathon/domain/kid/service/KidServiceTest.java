@@ -184,14 +184,14 @@ class KidServiceTest {
                 givenMyKid(kid);
                 given(parentRepository.findFirstByKidIdOrderByIdAsc(KID_ID)).willReturn(Optional.of(parent));
                 UpdateKidRequest request = new UpdateKidRequest(
-                        "김지우", null, Gender.MALE,
+                        "김민교", null, Gender.MALE,
                         new UpdateParentRequest(null, "01098765432", Relationship.FATHER),
                         StringNode.valueOf("우유 알레르기가 있습니다."));
 
                 UpdateKidResponse result = kidService.updateKid(MEMBER_ID, KID_ID, request);
 
                 assertThat(result.kidId()).isEqualTo(KID_ID);
-                assertThat(kid.getName()).isEqualTo("김지우");
+                assertThat(kid.getName()).isEqualTo("김민교");
                 assertThat(kid.getBirthDate()).isEqualTo(BIRTH_DATE);
                 assertThat(kid.getGender()).isEqualTo(Gender.MALE);
                 assertThat(kid.getNote()).isEqualTo("우유 알레르기가 있습니다.");
@@ -227,7 +227,7 @@ class KidServiceTest {
             void 학부모미전달_조회안함() {
                 givenMyKid(kid());
 
-                kidService.updateKid(MEMBER_ID, KID_ID, new UpdateKidRequest("김지우", null, null, null, null));
+                kidService.updateKid(MEMBER_ID, KID_ID, new UpdateKidRequest("김민교", null, null, null, null));
 
                 verify(parentRepository, never()).findFirstByKidIdOrderByIdAsc(any());
             }
@@ -244,7 +244,7 @@ class KidServiceTest {
                 given(memberKidRepository.existsByMemberIdAndKidId(MEMBER_ID, KID_ID)).willReturn(false);
 
                 assertThatThrownBy(() -> kidService.updateKid(MEMBER_ID, KID_ID,
-                        new UpdateKidRequest("김지우", null, null, null, null)))
+                        new UpdateKidRequest("김민교", null, null, null, null)))
                         .isInstanceOf(GeneralException.class)
                         .satisfies(ex -> assertThat(((GeneralException) ex).getErrorCode())
                                 .isEqualTo(KidErrorCode.KID_NOT_FOUND));
