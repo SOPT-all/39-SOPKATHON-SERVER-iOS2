@@ -1,16 +1,15 @@
-package org.sopt.sopkathon.domain.message.code;
+package org.sopt.sopkathon.domain.briefing.code;
 
-import org.sopt.sopkathon.global.swagger.SuccessCodeMarker;
+import org.sopt.sopkathon.global.swagger.ErrorCodeMarker;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
+@ErrorCodeMarker
 @Target(ElementType.METHOD)
 @Retention(RetentionPolicy.RUNTIME)
-@SuccessCodeMarker
-public @interface ApiMessageSuccess {
-
-    MessageSuccessCode value();
+public @interface ApiBriefingErrors {
+    BriefingErrorCode[] value();
 }

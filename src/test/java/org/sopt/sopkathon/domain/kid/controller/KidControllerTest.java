@@ -280,7 +280,7 @@ class KidControllerTest {
                 given(kidService.updateKid(eq(MEMBER_ID), eq(KID_ID), any(UpdateKidRequest.class)))
                         .willReturn(new UpdateKidResponse(KID_ID));
 
-                patchKid(new UpdateKidRequest("김지우", BIRTH_DATE, Gender.FEMALE,
+                patchKid(new UpdateKidRequest("김민교", BIRTH_DATE, Gender.FEMALE,
                         new UpdateParentRequest("김민지", "01012345678", Relationship.MOTHER),
                         StringNode.valueOf("우유 알레르기가 있습니다.")))
                         .andExpect(status().isOk())
@@ -292,7 +292,7 @@ class KidControllerTest {
             @Test
             @DisplayName("note 필드를 보내지 않으면 note가 null(기존 값 유지)로 전달된다")
             void note미전달_null로_전달된다() throws Exception {
-                patchKid(Map.of("name", "김지우"))
+                patchKid(Map.of("name", "김민교"))
                         .andExpect(status().isOk());
 
                 assertThat(captureRequest().note()).isNull();
@@ -332,7 +332,7 @@ class KidControllerTest {
                 given(kidService.updateKid(eq(MEMBER_ID), eq(KID_ID), any(UpdateKidRequest.class)))
                         .willThrow(new GeneralException(KidErrorCode.KID_NOT_FOUND));
 
-                patchKid(Map.of("name", "김지우"))
+                patchKid(Map.of("name", "김민교"))
                         .andExpect(status().isNotFound())
                         .andExpect(jsonPath("$.code").value(KidErrorCode.KID_NOT_FOUND.getCode()));
             }
