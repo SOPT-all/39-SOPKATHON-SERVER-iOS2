@@ -1,9 +1,32 @@
+### security ###
 .env
+**/.env
+**/.env.*
+
+### Git / IDE / OS ###
 .git
 .github
-.gradle
 .idea
+.vscode
+.DS_Store
+
+### build ###
+.gradle
 build
+**/build
+
+### infra ###
+infra
+**/.terraform
+*.tfstate
+*.tfstate.*
+*.tfvars
+*.tfplan
+
+### unnecessary ###
 dev
+prod
 docs
+src/test
+gradlew.bat
 *.md
