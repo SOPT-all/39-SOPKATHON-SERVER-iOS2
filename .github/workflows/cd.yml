@@ -84,10 +84,11 @@ jobs:
           SWAGGER_ENABLED: ${{ vars.SWAGGER_ENABLED }}
           DOMAIN: ${{ vars.DOMAIN }}
           AWS_S3_BUCKET: ${{ vars.AWS_S3_BUCKET }}
+          GEMINI_KEY: ${{ secrets.GEMINI_KEY }}
         run: |
           set -euo pipefail
 
-          keys=(DB_URL DB_USERNAME DB_PASSWORD MYSQL_ROOT_PASSWORD SWAGGER_ENABLED DOMAIN AWS_S3_BUCKET)
+          keys=(DB_URL DB_USERNAME DB_PASSWORD MYSQL_ROOT_PASSWORD SWAGGER_ENABLED DOMAIN AWS_S3_BUCKET GEMINI_KEY)
 
           for key in "${keys[@]}"; do
             value="${!key}"
