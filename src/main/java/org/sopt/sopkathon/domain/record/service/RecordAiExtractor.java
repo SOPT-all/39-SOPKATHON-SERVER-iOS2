@@ -8,6 +8,7 @@ import org.sopt.sopkathon.global.exception.GeneralException;
 import org.springframework.ai.google.genai.GoogleGenAiChatModel;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.ObjectMapper;
 
 import java.util.LinkedHashSet;
@@ -18,6 +19,7 @@ import java.util.stream.Collectors;
 
 @Slf4j
 @Service
+@Transactional(readOnly = true)
 public class RecordAiExtractor {
 
     private static final String JSON_CODE_BLOCK_PREFIX = "```json";
@@ -39,6 +41,15 @@ public class RecordAiExtractor {
     }
 
     public AiRecordExtraction extract(String text, List<String> assignedKidNames) {
+        return extract(text, assignedKidNames, true, true);
+    }
+
+    public AiRecordExtraction extract(
+            String text,
+            List<String> assignedKidNames,
+            boolean kidNameRequired,
+            boolean categoryRequired
+    ) {
         Set<String> normalizedKidNames = normalizeKidNames(assignedKidNames);
         validateInput(text, normalizedKidNames);
 
@@ -50,7 +61,12 @@ public class RecordAiExtractor {
                     createPrompt(text, normalizedKidNames)
             );
             AiRecordExtraction extraction = parseResponse(response);
-            validateExtraction(extraction, normalizedKidNames);
+            validateExtraction(
+                    extraction,
+                    normalizedKidNames,
+                    kidNameRequired,
+                    categoryRequired
+            );
 
             log.info("Gemini record extraction completed ({} ms, {} records)",
                     elapsedMillis(start), extraction.records().size());
@@ -128,7 +144,9 @@ public class RecordAiExtractor {
 
     private void validateExtraction(
             AiRecordExtraction extraction,
-            Set<String> assignedKidNames
+            Set<String> assignedKidNames,
+            boolean kidNameRequired,
+            boolean categoryRequired
     ) {
         if (extraction == null
                 || extraction.records() == null
@@ -137,15 +155,19 @@ public class RecordAiExtractor {
         }
 
         for (AiRecordItem record : extraction.records()) {
-            if (record == null
-                    || record.kidName() == null
-                    || record.kidName().isBlank()
-                    || record.category() == null
-                    || record.content() == null
-                    || record.content().isBlank()) {
+            if (record == null) {
                 throw new GeneralException(RecordErrorCode.RECORD_EXTRACTION_FAILED);
             }
-            if (!assignedKidNames.contains(record.kidName())) {
+            if (kidNameRequired
+                    && (record.kidName() == null || record.kidName().isBlank())) {
+                throw new GeneralException(RecordErrorCode.RECORD_EXTRACTION_FAILED);
+            }
+            if (categoryRequired && record.category() == null) {
+                throw new GeneralException(RecordErrorCode.RECORD_EXTRACTION_FAILED);
+            }
+            if (record.kidName() != null
+                    && !record.kidName().isBlank()
+                    && !assignedKidNames.contains(record.kidName())) {
                 throw new GeneralException(RecordErrorCode.KID_NOT_FOUND_OR_NOT_ASSIGNED);
             }
         }
