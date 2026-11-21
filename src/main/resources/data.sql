@@ -1,6 +1,6 @@
 -- 시드 데이터
 -- 브리핑 조회는 "오늘" 기준이라 기록/브리핑 날짜는 CURDATE()로 넣는다.
-INSERT INTO member (name) VALUES ('테스트 선생님');
+INSERT INTO member (name) VALUES ('솝트 선생님');
 
 -- 아이
 -- 1~4: 오늘 기록 있음 → 브리핑 목록에 나옴 (recordedKidNames 4명)
