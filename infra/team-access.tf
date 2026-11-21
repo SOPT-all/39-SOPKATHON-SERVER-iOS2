@@ -40,3 +40,22 @@ resource "aws_iam_user_policy" "db_access" {
     ]
   })
 }
+
+# 김예지 S3 권한 추가
+resource "aws_iam_user_policy" "s3_access" {
+  name     = "sopkathon-S3-image"
+  user     = aws_iam_user.db_access["yeji"].name
+
+  policy = jsonencode({
+      Version = "2012-10-17"
+      Statement = [{
+          Sid    = "S3ImageAccess"
+          Effect = "Allow"
+          Action = [
+                   "s3:*",
+                   "s3-object-lambda:*"
+                 ]
+          Resource = "${aws_s3_bucket.files.arn}/*"
+          }]
+      })
+  }
