@@ -11,7 +11,7 @@ public record PresignedUrlRequest(
 
         @NotBlank(message = "Content-Type은 필수입니다.")
         @Pattern(
-                regexp = "image/[-+.\\w]+|video/[-+.\\w]+|application/pdf",
+                regexp = "image/(jpeg|png)",
                 message = "지원하지 않는 Content-Type입니다."
         )
         String contentType
