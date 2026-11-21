@@ -75,6 +75,9 @@ app:
       [교사 메모]
       {text}
 
+server:
+  forward-headers-strategy: framework
+
 spring:
   application:
     name: sopkathon
