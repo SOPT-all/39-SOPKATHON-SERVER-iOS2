@@ -1,5 +1,6 @@
 package org.sopt.sopkathon.global.config;
 
+import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.Operation;
 import io.swagger.v3.oas.models.examples.Example;
@@ -11,6 +12,8 @@ import io.swagger.v3.oas.models.media.ObjectSchema;
 import io.swagger.v3.oas.models.media.Schema;
 import io.swagger.v3.oas.models.media.StringSchema;
 import io.swagger.v3.oas.models.responses.ApiResponses;
+import io.swagger.v3.oas.models.security.SecurityRequirement;
+import io.swagger.v3.oas.models.security.SecurityScheme;
 import org.sopt.sopkathon.global.code.BaseErrorCode;
 import org.sopt.sopkathon.global.code.BaseSuccessCode;
 import org.sopt.sopkathon.global.response.ApiResponse;
@@ -24,6 +27,8 @@ import java.lang.annotation.Annotation;
 
 @Configuration
 public class SwaggerConfig {
+    // 모든 API에 Member-Id 헤더 인증 적용
+    // 필요 없으면 @SecurityRequirements로 제외
     @Bean
     public OpenAPI openAPI() {
         Info info = new Info()
@@ -32,7 +37,9 @@ public class SwaggerConfig {
                 .version("1.0.0");
 
         return new OpenAPI()
-                .info(info);
+                .info(info)
+                .components(new Components().addSecuritySchemes("memberId", new SecurityScheme().type(SecurityScheme.Type.APIKEY).in(SecurityScheme.In.HEADER).name("Member-Id")))
+                .addSecurityItem(new SecurityRequirement().addList("memberId"));
     }
 
     @Bean
