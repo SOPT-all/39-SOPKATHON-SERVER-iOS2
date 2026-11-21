@@ -51,4 +51,8 @@ public class Message extends BaseTimeEntity {
         this.content = content;
         this.briefingDate = briefingDate;
     }
+
+    public void updateContent(String content) {
+        this.content = content;
+    }
 }
